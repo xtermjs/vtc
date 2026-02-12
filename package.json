@@ -1,18 +1,34 @@
 {
-  "name": "vt-cli",
+  "name": "vtc",
   "module": "src/index.ts",
   "type": "module",
   "private": true,
   "bin": {
-    "vt-cli": "src/index.ts"
+    "vtc": "src/index.ts"
   },
   "oclif": {
-    "bin": "vt-cli",
-    "commands": "./src/commands"
+    "bin": "vtc",
+    "commands": "./src/commands",
+    "theme": {
+      "alias": "cyan",
+      "bin": "bold",
+      "command": "cyanBright",
+      "commandSummary": "white",
+      "dollarSign": "green",
+      "flag": "greenBright",
+      "flagDefaultValue": "blue",
+      "flagOptions": "yellow",
+      "flagRequired": "redBright",
+      "flagSeparator": "gray",
+      "sectionDescription": "gray",
+      "sectionHeader": "yellowBright",
+      "topic": "cyanBright",
+      "version": "magenta"
+    }
   },
   "scripts": {
     "build": "bun build src/index.ts --outdir dist",
-    "build:bin": "bun build src/index.ts --compile --outfile dist/vt-cli",
+    "build:bin": "bun build src/index.ts --compile --outfile dist/vtc",
     "typecheck": "tsc -p src/tsconfig.json --noEmit",
     "lint": "tsc -p src/tsconfig.json --noEmit",
     "test": "echo \"No tests\""

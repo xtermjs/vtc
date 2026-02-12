@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "vt-cli",
+      "name": "vtc",
       "dependencies": {
         "@oclif/core": "^4.8.0",
       },
