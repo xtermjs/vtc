@@ -3,10 +3,27 @@
   "module": "src/index.ts",
   "type": "module",
   "private": true,
+  "bin": {
+    "vt-cli": "src/index.ts"
+  },
+  "oclif": {
+    "bin": "vt-cli",
+    "commands": "./src/commands"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist",
+    "build:bin": "bun build src/index.ts --compile --outfile dist/vt-cli",
+    "typecheck": "tsc -p src/tsconfig.json --noEmit",
+    "lint": "tsc -p src/tsconfig.json --noEmit",
+    "test": "echo \"No tests\""
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "dependencies": {
+    "@oclif/core": "^4.8.0"
   }
 }
