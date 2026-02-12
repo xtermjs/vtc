@@ -31,7 +31,7 @@
     "build:bin": "bun build src/index.ts --compile --outfile dist/vtc",
     "typecheck": "tsc -p src/tsconfig.json --noEmit",
     "lint": "tsc -p src/tsconfig.json --noEmit",
-    "test": "echo \"No tests\""
+    "test": "bun test"
   },
   "devDependencies": {
     "@types/bun": "latest"
