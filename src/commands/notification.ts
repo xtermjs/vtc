@@ -13,9 +13,21 @@ export default class Notification extends Command {
 
   static override flags = {
     actions: Flags.string({ char: "a", description: "Actions on activation" }),
-    close: Flags.integer({ char: "c", description: "Report close events (0/1)" }),
-    complete: Flags.integer({ char: "d", description: "Chunk completion flag (0/1)" }),
-    base64: Flags.integer({ char: "e", description: "Payload is base64 (0/1)" }),
+    close: Flags.option({
+      char: "c",
+      description: "Report close events",
+      options: ["0", "1"] as const,
+    })(),
+    complete: Flags.option({
+      char: "d",
+      description: "Chunk completion flag",
+      options: ["0", "1"] as const,
+    })(),
+    base64: Flags.option({
+      char: "e",
+      description: "Payload is base64",
+      options: ["0", "1"] as const,
+    })(),
     app: Flags.string({ char: "f", description: "Application name" }),
     iconCache: Flags.string({ char: "g", description: "Icon cache id" }),
     identifier: Flags.string({ char: "i", description: "Notification id" }),
@@ -24,7 +36,11 @@ export default class Notification extends Command {
     payloadType: Flags.string({ char: "p", description: "Payload type" }),
     sound: Flags.string({ char: "s", description: "Sound name" }),
     type: Flags.string({ char: "t", description: "Notification type", multiple: true }),
-    urgency: Flags.integer({ char: "u", description: "Urgency (0/1/2)" }),
+    urgency: Flags.option({
+      char: "u",
+      description: "Urgency",
+      options: ["0", "1", "2"] as const,
+    })(),
     expire: Flags.integer({ char: "w", description: "Auto-expire ms" }),
   };
 
@@ -34,9 +50,9 @@ export default class Notification extends Command {
     type MetaValue = string | number | string[] | undefined;
     type Metadata = {
       a?: string;
-      c?: number;
-      d?: number;
-      e?: number;
+      c?: number | string;
+      d?: number | string;
+      e?: number | string;
       f?: string;
       g?: string;
       i?: string;
@@ -45,7 +61,7 @@ export default class Notification extends Command {
       p?: string;
       s?: string;
       t?: string[];
-      u?: number;
+      u?: number | string;
       w?: number;
     };
 
