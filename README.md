@@ -1,4 +1,4 @@
-# vtc
+# vtc (VT CLI)
 
 To install dependencies:
 
