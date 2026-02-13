@@ -1,4 +1,5 @@
 import { Args, Command, Flags } from "@oclif/core";
+import { osc } from "../helpers/vt";
 
 export default class Notification extends Command {
   static override description = "Print OSC 99 notification escape sequence";
@@ -124,11 +125,6 @@ export default class Notification extends Command {
       return entries;
     };
 
-    const buildOsc = (metadata: string[], payload: string): string => {
-      const metaValue = metadata.join(":");
-      return `\x1b]99;${metaValue};${payload}\x1b\\`;
-    };
-
     const rawMessage = args.message;
     const messageParts = Array.isArray(rawMessage)
       ? rawMessage
@@ -143,19 +139,19 @@ export default class Notification extends Command {
         payloadType === "icon" && flags.base64 === undefined ? 1 : flags.base64;
       const metadata = buildMetadata({ p: payloadType, e: effectiveBase64 });
       const payload = payloadParts.join(" ");
-      this.log(buildOsc(metadata, payload));
+      this.log(osc(metadata, payload));
       return;
     }
 
     if (payloadParts.length === 0) {
       const metadata = buildMetadata({ p: "title" });
-      this.log(buildOsc(metadata, "Hello world"));
+      this.log(osc(metadata, "Hello world"));
       return;
     }
 
     if (payloadParts.length === 1) {
       const metadata = buildMetadata({ p: "title" });
-      this.log(buildOsc(metadata, payloadParts[0]));
+      this.log(osc(metadata, payloadParts[0]));
       return;
     }
 
@@ -165,7 +161,7 @@ export default class Notification extends Command {
     const titleMeta = buildMetadata({ p: "title", d: autoComplete });
     const bodyMeta = buildMetadata({ p: "body", d: flags.complete ?? 1 });
 
-    this.log(buildOsc(titleMeta, title));
-    this.log(buildOsc(bodyMeta, body));
+    this.log(osc(titleMeta, title));
+    this.log(osc(bodyMeta, body));
   }
 }
