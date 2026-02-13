@@ -1,8 +1,6 @@
 import { run } from "@oclif/core";
 
-const root = process.cwd();
-
-run(process.argv.slice(2), root).catch((error) => {
+run(process.argv.slice(2), import.meta.url).catch((error) => {
 	console.error(error);
 	process.exitCode = 1;
 });
