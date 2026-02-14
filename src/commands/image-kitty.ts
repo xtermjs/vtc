@@ -1,4 +1,5 @@
 import { Args, Command, Flags } from "@oclif/core";
+import { decodePng } from "@lunapaint/png-codec";
 import { apc } from "../helpers/vt";
 
 const DEFAULT_CHUNK_SIZE = 4096;
@@ -23,7 +24,7 @@ export default class ImageKitty extends Command {
     })(),
     format: Flags.option({
       char: "f",
-      description: "Image format",
+      description: "Wire format: png (f=100) sends raw PNG bytes, rgb (f=24) sends 24-bit pixel data, rgba (f=32) sends 32-bit pixel data. For rgb/rgba, PNG input files are auto-decoded; raw pixel files require --width and --height.",
       options: ["png", "rgb", "rgba"] as const,
       default: "png" as const,
     })(),
@@ -33,11 +34,11 @@ export default class ImageKitty extends Command {
     }),
     width: Flags.integer({
       char: "W",
-      description: "Image width in pixels (required for rgb/rgba)",
+      description: "Image width in pixels (required for raw rgb/rgba input files)",
     }),
     height: Flags.integer({
       char: "H",
-      description: "Image height in pixels (required for rgb/rgba)",
+      description: "Image height in pixels (required for raw rgb/rgba input files)",
     }),
     columns: Flags.integer({
       description: "Display width in terminal columns",
@@ -73,10 +74,50 @@ export default class ImageKitty extends Command {
     }
 
     const file = Bun.file(args.file);
-    const data = Buffer.from(await file.arrayBuffer());
-    const base64 = data.toString("base64");
+    const fileBytes = new Uint8Array(await file.arrayBuffer());
+    const fileIsPng = isPng(fileBytes);
 
-    this.emitTransmitDisplay(base64, flags);
+    let base64: string;
+    let width: number | undefined = flags.width;
+    let height: number | undefined = flags.height;
+
+    if (flags.format === "png") {
+      if (!fileIsPng) {
+        this.error("Input file is not a valid PNG");
+      }
+      // Send raw PNG bytes as-is (f=100)
+      base64 = Buffer.from(fileBytes).toString("base64");
+    } else if (fileIsPng) {
+      // Decode PNG to extract raw pixel data for rgb/rgba
+      const decoded = await decodePng(fileBytes, { force32: true });
+      width = decoded.image.width;
+      height = decoded.image.height;
+
+      let pixelData: Uint8Array;
+      if (flags.format === "rgb") {
+        // Strip alpha channel: RGBA → RGB
+        const rgba = decoded.image.data;
+        const pixelCount = width * height;
+        pixelData = new Uint8Array(pixelCount * 3);
+        for (let i = 0; i < pixelCount; i++) {
+          pixelData[i * 3] = rgba[i * 4]!;
+          pixelData[i * 3 + 1] = rgba[i * 4 + 1]!;
+          pixelData[i * 3 + 2] = rgba[i * 4 + 2]!;
+        }
+      } else {
+        // rgba: use decoded pixel data directly
+        pixelData = decoded.image.data;
+      }
+      base64 = Buffer.from(pixelData).toString("base64");
+    } else {
+      // Raw pixel data file — width and height are required
+      if (width === undefined || height === undefined) {
+        this.error("--width and --height are required for raw rgb/rgba input files");
+      }
+      base64 = Buffer.from(fileBytes).toString("base64");
+    }
+
+    this.emitTransmitDisplay(base64, { ...flags, width, height });
   }
 
   private emitQuery(flags: {
@@ -154,4 +195,12 @@ function formatToCode(format: string): number {
     case "png": return 100;
     default: return 100;
   }
+}
+
+// PNG magic bytes: 0x89 P N G \r \n 0x1A \n
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+function isPng(data: Uint8Array): boolean {
+  if (data.length < PNG_SIGNATURE.length) return false;
+  return PNG_SIGNATURE.every((byte, i) => data[i] === byte);
 }

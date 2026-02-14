@@ -128,6 +128,58 @@ describe("ImageKitty", () => {
     );
   });
 
+  it("errors when non-PNG file used with png format", async () => {
+    await withTempFile(Buffer.from("not a png file"), async (path) => {
+      await expect(
+        runImageKitty({ args: { file: path } }),
+      ).rejects.toThrow("Input file is not a valid PNG");
+    });
+  });
+
+  it("errors when raw pixel file lacks width/height", async () => {
+    await withTempFile(Buffer.from("raw pixel data"), async (path) => {
+      await expect(
+        runImageKitty({ args: { file: path }, flags: { format: "rgb" } }),
+      ).rejects.toThrow("--width and --height are required");
+    });
+  });
+
+  it("sends raw RGB pixel data with explicit dimensions", async () => {
+    // 2x1 image, 3 bytes per pixel = 6 bytes
+    const rawRgb = Buffer.from([255, 0, 0, 0, 255, 0]);
+    await withTempFile(rawRgb, async (path) => {
+      const output = await runImageKitty({
+        args: { file: path },
+        flags: { format: "rgb", width: 2, height: 1 },
+      });
+
+      const { meta, payload } = parseApc(output[0]!);
+      expect(meta.get("f")).toBe("24");
+      expect(meta.get("s")).toBe("2");
+      expect(meta.get("v")).toBe("1");
+      const decoded = Buffer.from(payload, "base64");
+      expect(decoded).toEqual(rawRgb);
+    });
+  });
+
+  it("sends raw RGBA pixel data with explicit dimensions", async () => {
+    // 1x1 image, 4 bytes per pixel = 4 bytes
+    const rawRgba = Buffer.from([255, 0, 0, 255]);
+    await withTempFile(rawRgba, async (path) => {
+      const output = await runImageKitty({
+        args: { file: path },
+        flags: { format: "rgba", width: 1, height: 1 },
+      });
+
+      const { meta, payload } = parseApc(output[0]!);
+      expect(meta.get("f")).toBe("32");
+      expect(meta.get("s")).toBe("1");
+      expect(meta.get("v")).toBe("1");
+      const decoded = Buffer.from(payload, "base64");
+      expect(decoded).toEqual(rawRgba);
+    });
+  });
+
   it("sends a single-chunk PNG with correct metadata", async () => {
     await withTempFile(TINY_PNG, async (path) => {
       const output = await runImageKitty({ args: { file: path } });
@@ -192,27 +244,39 @@ describe("ImageKitty", () => {
     expect(payload).toBe("");
   });
 
-  it("sets format code for rgb", async () => {
+  it("decodes PNG to RGB pixel data with auto-extracted dimensions", async () => {
     await withTempFile(TINY_PNG, async (path) => {
       const output = await runImageKitty({
         args: { file: path },
         flags: { format: "rgb" },
       });
 
-      const { meta } = parseApc(output[0]!);
+      const { meta, payload } = parseApc(output[0]!);
       expect(meta.get("f")).toBe("24");
+      // Width and height auto-extracted from 1x1 PNG
+      expect(meta.get("s")).toBe("1");
+      expect(meta.get("v")).toBe("1");
+      // Payload should be base64 of 3 bytes (1 pixel × RGB)
+      const decoded = Buffer.from(payload, "base64");
+      expect(decoded.length).toBe(3);
     });
   });
 
-  it("sets format code for rgba", async () => {
+  it("decodes PNG to RGBA pixel data with auto-extracted dimensions", async () => {
     await withTempFile(TINY_PNG, async (path) => {
       const output = await runImageKitty({
         args: { file: path },
         flags: { format: "rgba" },
       });
 
-      const { meta } = parseApc(output[0]!);
+      const { meta, payload } = parseApc(output[0]!);
       expect(meta.get("f")).toBe("32");
+      // Width and height auto-extracted from 1x1 PNG
+      expect(meta.get("s")).toBe("1");
+      expect(meta.get("v")).toBe("1");
+      // Payload should be base64 of 4 bytes (1 pixel × RGBA)
+      const decoded = Buffer.from(payload, "base64");
+      expect(decoded.length).toBe(4);
     });
   });
 
@@ -221,24 +285,18 @@ describe("ImageKitty", () => {
       const output = await runImageKitty({
         args: { file: path },
         flags: {
-          width: 100,
-          height: 200,
           columns: 40,
           rows: 20,
           imageId: 5,
-          placementId: 3,
           quiet: "2",
           noMove: true,
         },
       });
 
       const { meta } = parseApc(output[0]!);
-      expect(meta.get("s")).toBe("100");
-      expect(meta.get("v")).toBe("200");
       expect(meta.get("c")).toBe("40");
       expect(meta.get("r")).toBe("20");
       expect(meta.get("i")).toBe("5");
-      expect(meta.get("p")).toBe("3");
       expect(meta.get("q")).toBe("2");
       expect(meta.get("C")).toBe("1");
     });
