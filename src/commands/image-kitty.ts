@@ -28,21 +28,23 @@ export default class ImageKitty extends Command {
       default: "png" as const,
     })(),
     chunkSize: Flags.integer({
-      char: "c",
+      char: "b",
       description: "Max bytes of base64 data per chunk (default: 4096)",
     }),
     width: Flags.integer({
-      char: "W",
+      char: "s",
       description: "Image width in pixels (required for raw rgb/rgba input files)",
     }),
     height: Flags.integer({
-      char: "H",
+      char: "v",
       description: "Image height in pixels (required for raw rgb/rgba input files)",
     }),
     columns: Flags.integer({
+      char: "c",
       description: "Display width in terminal columns",
     }),
     rows: Flags.integer({
+      char: "r",
       description: "Display height in terminal rows",
     }),
     imageId: Flags.integer({
@@ -55,6 +57,7 @@ export default class ImageKitty extends Command {
       options: ["0", "1", "2"] as const,
     })(),
     noMove: Flags.boolean({
+      char: "C",
       description: "Do not move cursor after displaying image",
       default: false,
     }),
