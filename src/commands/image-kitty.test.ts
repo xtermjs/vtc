@@ -4,6 +4,7 @@ import ImageKitty from "./image-kitty";
 class TestImageKitty extends ImageKitty {
   output: string[] = [];
   errors: string[] = [];
+  helpShown = false;
   private testArgs: Record<string, unknown> = {};
   private testFlags: Record<string, unknown> = {};
 
@@ -21,7 +22,7 @@ class TestImageKitty extends ImageKitty {
     return {
       args: this.testArgs,
       flags: {
-        action: "transmit-display",
+        action: this.testFlags.action,
         format: "png",
         noMove: false,
         ...this.testFlags,
@@ -33,12 +34,17 @@ class TestImageKitty extends ImageKitty {
     };
   }
 
+  protected override async showCommandHelp(): Promise<void> {
+    this.helpShown = true;
+  }
+
   async runWith(options: {
     args?: Record<string, unknown>;
     flags?: Record<string, unknown>;
   }): Promise<string[]> {
     this.output = [];
     this.errors = [];
+    this.helpShown = false;
     this.testArgs = options.args ?? {};
     this.testFlags = options.flags ?? {};
     await this.run();
@@ -123,9 +129,15 @@ const withTempFile = async (
 
 describe("ImageKitty", () => {
   it("errors when no file provided for transmit-display", async () => {
-    await expect(runImageKitty({})).rejects.toThrow(
-      "File argument is required",
-    );
+    await expect(
+      runImageKitty({ flags: { action: "transmit-display" } }),
+    ).rejects.toThrow("File argument is required");
+  });
+
+  it("shows help when no file and no action", async () => {
+    const cmd = new TestImageKitty([], { bin: "vtc" } as any);
+    await cmd.runWith({});
+    expect(cmd.helpShown).toBe(true);
   });
 
   it("errors when non-PNG file used with png format", async () => {

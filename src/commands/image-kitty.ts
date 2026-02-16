@@ -1,4 +1,4 @@
-import { Args, Command, Flags } from "@oclif/core";
+import { Args, Command, Flags, loadHelpClass } from "@oclif/core";
 import { decodePng } from "@lunapaint/png-codec";
 import { apc } from "../helpers/vt";
 
@@ -20,7 +20,6 @@ export default class ImageKitty extends Command {
       char: "a",
       description: "Graphics action",
       options: ["transmit-display", "query"] as const,
-      default: "transmit-display" as const,
     })(),
     format: Flags.option({
       char: "f",
@@ -64,7 +63,14 @@ export default class ImageKitty extends Command {
   async run(): Promise<void> {
     const { args, flags } = await this.parse(ImageKitty);
 
-    if (flags.action === "query") {
+    if (!args.file && flags.action === undefined) {
+      await this.showCommandHelp();
+      return;
+    }
+
+    const action = flags.action ?? "transmit-display";
+
+    if (action === "query") {
       this.emitQuery(flags);
       return;
     }
@@ -118,6 +124,15 @@ export default class ImageKitty extends Command {
     }
 
     this.emitTransmitDisplay(base64, { ...flags, width, height });
+  }
+
+  protected async showCommandHelp(): Promise<void> {
+    const Help = await loadHelpClass(this.config);
+    const help = new Help(
+      this.config,
+      this.config.pjson.oclif?.helpOptions ?? this.config.pjson.helpOptions,
+    );
+    await help.showHelp(this.id ? [this.id, ...this.argv] : this.argv);
   }
 
   private emitQuery(flags: {
