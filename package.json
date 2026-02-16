@@ -37,6 +37,7 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@oclif/core": "^4.8.0"
+    "@oclif/core": "^4.8.0",
+    "@lunapaint/png-codec": "^0.2.0"
   }
 }
