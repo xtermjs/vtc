@@ -1,5 +1,5 @@
 import { Args, Command, Flags, loadHelpClass } from "@oclif/core";
-import { decodePng } from "@lunapaint/png-codec";
+import { decodePng, encodePng } from "@lunapaint/png-codec";
 import { apc } from "../helpers/vt";
 
 const DEFAULT_CHUNK_SIZE = 4096;
@@ -16,6 +16,10 @@ export default class ImageKitty extends Command {
   };
 
   static override flags = {
+    demo: Flags.boolean({
+      description: "Display a built-in test image (no file needed)",
+      default: false,
+    }),
     action: Flags.option({
       char: "a",
       description: "Graphics action",
@@ -61,12 +65,36 @@ export default class ImageKitty extends Command {
       description: "Do not move cursor after displaying image",
       default: false,
     }),
+    srcX: Flags.integer({
+      char: "x",
+      description: "Source rectangle x offset in pixels (kitty x= key)",
+    }),
+    srcY: Flags.integer({
+      char: "y",
+      description: "Source rectangle y offset in pixels (kitty y= key)",
+    }),
+    srcWidth: Flags.integer({
+      char: "w",
+      description: "Source rectangle width in pixels (kitty w= key)",
+    }),
+    srcHeight: Flags.integer({
+      char: "h",
+      description: "Source rectangle height in pixels (kitty h= key)",
+    }),
+    offsetX: Flags.integer({
+      char: "X",
+      description: "Sub-cell horizontal offset in pixels (kitty X= key)",
+    }),
+    offsetY: Flags.integer({
+      char: "Y",
+      description: "Sub-cell vertical offset in pixels (kitty Y= key)",
+    }),
   };
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(ImageKitty);
 
-    if (!args.file && flags.action === undefined) {
+    if (!args.file && !flags.demo && flags.action === undefined) {
       await this.showCommandHelp();
       return;
     }
@@ -78,12 +106,17 @@ export default class ImageKitty extends Command {
       return;
     }
 
-    if (!args.file) {
+    if (!args.file && !flags.demo) {
       this.error("File argument is required for transmit-display action");
     }
 
-    const file = Bun.file(args.file);
-    const fileBytes = new Uint8Array(await file.arrayBuffer());
+    let fileBytes: Uint8Array;
+    if (flags.demo) {
+      fileBytes = await generateDemoPng();
+    } else {
+      const file = Bun.file(args.file!);
+      fileBytes = new Uint8Array(await file.arrayBuffer());
+    }
     const fileIsPng = isPng(fileBytes);
 
     let base64: string;
@@ -164,6 +197,12 @@ export default class ImageKitty extends Command {
       imageId?: number;
       quiet?: string;
       noMove?: boolean;
+      srcX?: number;
+      srcY?: number;
+      srcWidth?: number;
+      srcHeight?: number;
+      offsetX?: number;
+      offsetY?: number;
     },
   ): void {
     const formatCode = formatToCode(flags.format ?? "png");
@@ -191,6 +230,12 @@ export default class ImageKitty extends Command {
         if (flags.imageId !== undefined) meta.push(`i=${flags.imageId}`);
         if (flags.quiet !== undefined) meta.push(`q=${flags.quiet}`);
         if (flags.noMove) meta.push("C=1");
+        if (flags.srcX !== undefined) meta.push(`x=${flags.srcX}`);
+        if (flags.srcY !== undefined) meta.push(`y=${flags.srcY}`);
+        if (flags.srcWidth !== undefined) meta.push(`w=${flags.srcWidth}`);
+        if (flags.srcHeight !== undefined) meta.push(`h=${flags.srcHeight}`);
+        if (flags.offsetX !== undefined) meta.push(`X=${flags.offsetX}`);
+        if (flags.offsetY !== undefined) meta.push(`Y=${flags.offsetY}`);
       }
 
       meta.push(`m=${isLast ? 0 : 1}`);
@@ -221,4 +266,30 @@ const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 function isPng(data: Uint8Array): boolean {
   if (data.length < PNG_SIGNATURE.length) return false;
   return PNG_SIGNATURE.every((byte, i) => data[i] === byte);
+}
+
+/** Generate a 200x200 PNG test image with a 4-quadrant color pattern */
+async function generateDemoPng(): Promise<Uint8Array> {
+  const width = 200;
+  const height = 200;
+  const rgba = new Uint8Array(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const offset = (y * width + x) * 4;
+      const top = y < height / 2;
+      const left = x < width / 2;
+      if (top && left) {        // Red
+        rgba[offset] = 255; rgba[offset + 1] = 0; rgba[offset + 2] = 0;
+      } else if (top && !left) { // Green
+        rgba[offset] = 0; rgba[offset + 1] = 255; rgba[offset + 2] = 0;
+      } else if (!top && left) { // Blue
+        rgba[offset] = 0; rgba[offset + 1] = 0; rgba[offset + 2] = 255;
+      } else {                   // Yellow
+        rgba[offset] = 255; rgba[offset + 1] = 255; rgba[offset + 2] = 0;
+      }
+      rgba[offset + 3] = 255;
+    }
+  }
+  const encoded = await encodePng({ width, height, data: rgba, channels: 4 });
+  return encoded.data;
 }
