@@ -22,8 +22,8 @@ export default class ImageKitty extends Command {
     }),
     action: Flags.option({
       char: "a",
-      description: "Graphics action",
-      options: ["transmit-display", "query"] as const,
+      description: "Graphics action: transmit-display (a=T, default), transmit (a=t, store only), place (a=p, display previously transmitted image by --imageId), query (a=q)",
+      options: ["transmit-display", "transmit", "place", "query"] as const,
     })(),
     format: Flags.option({
       char: "f",
@@ -106,8 +106,16 @@ export default class ImageKitty extends Command {
       return;
     }
 
+    if (action === "place") {
+      if (flags.imageId === undefined) {
+        this.error("--imageId (-i) is required for place action");
+      }
+      this.emitPlace(flags);
+      return;
+    }
+
     if (!args.file && !flags.demo) {
-      this.error("File argument is required for transmit-display action");
+      this.error("File argument is required for transmit-display/transmit action");
     }
 
     let fileBytes: Uint8Array;
@@ -159,7 +167,7 @@ export default class ImageKitty extends Command {
       base64 = Buffer.from(fileBytes).toString("base64");
     }
 
-    this.emitTransmitDisplay(base64, { ...flags, width, height });
+    this.emitTransmitDisplay(base64, { ...flags, width, height, action });
   }
 
   protected async showCommandHelp(): Promise<void> {
@@ -185,9 +193,38 @@ export default class ImageKitty extends Command {
     this.writeRaw(apc(meta, ""));
   }
 
+  private emitPlace(flags: {
+    imageId?: number;
+    columns?: number;
+    rows?: number;
+    quiet?: string;
+    noMove?: boolean;
+    srcX?: number;
+    srcY?: number;
+    srcWidth?: number;
+    srcHeight?: number;
+    offsetX?: number;
+    offsetY?: number;
+  }): void {
+    const meta: string[] = ["a=p"];
+    if (flags.imageId !== undefined) meta.push(`i=${flags.imageId}`);
+    if (flags.columns !== undefined) meta.push(`c=${flags.columns}`);
+    if (flags.rows !== undefined) meta.push(`r=${flags.rows}`);
+    if (flags.quiet !== undefined) meta.push(`q=${flags.quiet}`);
+    if (flags.noMove) meta.push("C=1");
+    if (flags.srcX !== undefined) meta.push(`x=${flags.srcX}`);
+    if (flags.srcY !== undefined) meta.push(`y=${flags.srcY}`);
+    if (flags.srcWidth !== undefined) meta.push(`w=${flags.srcWidth}`);
+    if (flags.srcHeight !== undefined) meta.push(`h=${flags.srcHeight}`);
+    if (flags.offsetX !== undefined) meta.push(`X=${flags.offsetX}`);
+    if (flags.offsetY !== undefined) meta.push(`Y=${flags.offsetY}`);
+    this.writeRaw(apc(meta, ""));
+  }
+
   private emitTransmitDisplay(
     base64: string,
     flags: {
+      action?: string;
       format?: string;
       chunkSize?: number;
       width?: number;
@@ -205,6 +242,7 @@ export default class ImageKitty extends Command {
       offsetY?: number;
     },
   ): void {
+    const actionCode = flags.action === "transmit" ? "a=t" : "a=T";
     const formatCode = formatToCode(flags.format ?? "png");
     const size = flags.chunkSize ?? DEFAULT_CHUNK_SIZE;
     const chunks: string[] = [];
@@ -220,7 +258,7 @@ export default class ImageKitty extends Command {
       const meta: string[] = [];
 
       if (isFirst) {
-        meta.push("a=T");
+        meta.push(actionCode);
         meta.push(`f=${formatCode}`);
 
         if (flags.width !== undefined) meta.push(`s=${flags.width}`);
